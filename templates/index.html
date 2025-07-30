@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>UTR 检查工具</title>
+</head>
+<body>
+    <h1>UTR 检查工具</h1>
+
+    <form action="/" method="post">
+        <label>输入 UTR:</label>
+        <input type="text" name="utr" required>
+        <input type="text" name="remark" placeholder="备注（可选）">
+        <button type="submit">提交</button>
+    </form>
+
+    {% if message %}
+        <p><strong>{{ message }}</strong></p>
+    {% endif %}
+
+    <h2>已记录的 UTR 列表</h2>
+    <form method="get" action="/">
+        <input type="text" name="query" placeholder="搜索 UTR..." value="{{ query }}">
+        <button type="submit">搜索</button>
+    </form>
+
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>UTR</th>
+            <th>备注</th>
+            <th>时间</th>
+            <th>操作</th>
+        </tr>
+        {% for row in records %}
+        <tr>
+            <td>{{ row['id'] }}</td>
+            <td>{{ row['utr'] }}</td>
+            <td>{{ row['remark'] }}</td>
+            <td>{{ row['timestamp'] }}</td>
+            <td>
+                <form action="/delete" method="post" style="display:inline">
+                    <input type="hidden" name="id" value="{{ row['id'] }}">
+                    <button type="submit">删除</button>
+                </form>
+                <form action="/update_remark" method="post" style="display:inline">
+                    <input type="hidden" name="id" value="{{ row['id'] }}">
+                    <input type="text" name="new_remark" placeholder="新备注">
+                    <button type="submit">修改</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h3>批量上传</h3>
+    <form action="/batch_upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".xlsx" required>
+        <button type="submit">上传 Excel</button>
+    </form>
+
+    <form action="/export" method="get">
+        <button type="submit">导出为 Excel</button>
+    </form>
+</body>
+</html>
