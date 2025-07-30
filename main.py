@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from pytz import timezone
+india_tz = timezone('Asia/Kolkata')
 import pandas as pd
 import os
 from io import BytesIO
