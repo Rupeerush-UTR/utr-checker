@@ -1,69 +1,137 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from flask_sqlalchemy import SQLAlchemy
 import os
+from datetime import datetime
 
 app = Flask(__name__)
-
-# 配置数据库路径（SQLite 本地文件）
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///utr.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# 数据模型：用于存储已提交的 UTR
 class UTRRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     utr = db.Column(db.String(100), unique=True, nullable=False)
     remark = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# 确保数据库表在应用上下文中创建
 with app.app_context():
     db.create_all()
 
-# 首页路由
-@app.route('/')
-def index():
-    return render_template('index.html')
+HTML = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>UTR 检查工具</title>
+</head>
+<body>
+  <h2>UTR 检查工具（数据库版）</h2>
+  <input type="text" id="utrInput" placeholder="输入UTR">
+  <input type="text" id="remarkInput" placeholder="备注（可选）">
+  <button onclick="submitUTR()">提交</button>
+  <button onclick="loadAll()">查看明细</button>
+  <button onclick="deleteSelected()">删除所选</button>
+  <button onclick="exportData()">导出 Excel</button>
+  <input type="text" id="searchInput" placeholder="搜索UTR/备注" oninput="filterList()">
+  <div id="message"></div>
+  <ul id="utrList"></ul>
+<script>
+async function submitUTR() {
+  const utr = document.getElementById('utrInput').value.trim();
+  const remark = document.getElementById('remarkInput').value.trim();
+  const res = await fetch('/submit', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({utr, remark})
+  });
+  const data = await res.json();
+  document.getElementById('message').innerText = data.message;
+  loadAll();
+}
+async function loadAll() {
+  const res = await fetch('/all');
+  const list = await res.json();
+  const ul = document.getElementById('utrList');
+  ul.innerHTML = '';
+  for (const item of list) {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <input type="checkbox" data-id="${item.id}"> 
+      ${item.utr} - ${item.remark||''} (${item.created_at})
+    `;
+    ul.appendChild(li);
+  }
+}
+async function deleteSelected(){
+  const items = Array.from(document.querySelectorAll('#utrList input[type=checkbox]:checked'));
+  const ids = items.map(i=>i.dataset.id);
+  const res = await fetch('/delete', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})
+  });
+  const data = await res.json();
+  document.getElementById('message').innerText = data.message;
+  loadAll();
+}
+function filterList(){
+  const kw = document.getElementById('searchInput').value.toLowerCase();
+  document.querySelectorAll('#utrList li').forEach(li=>{
+    li.style.display = li.innerText.toLowerCase().includes(kw) ? '' : 'none';
+  });
+}
+function exportData(){
+  window.location.href = '/export';
+}
+window.onload=loadAll;
+</script>
+</body>
+</html>
+'''
 
-# 提交单个 UTR
+@app.route('/', methods=['GET', 'HEAD'])
+def index():
+    return render_template_string(HTML)
+
 @app.route('/submit', methods=['POST'])
 def submit():
     data = request.get_json()
-    utr = data.get('utr', '').strip()
-    remark = data.get('remark', '').strip()
-
+    utr = data.get('utr','').strip()
+    remark = data.get('remark','').strip()
     if not utr:
-        return jsonify({'status': 'error', 'message': 'UTR不能为空'})
+        return jsonify({'message':'UTR不能为空'})
+    if UTRRecord.query.filter_by(utr=utr).first():
+        return jsonify({'message':'❌ UTR 已存在'})
+    record = UTRRecord(utr=utr, remark=remark)
+    db.session.add(record); db.session.commit()
+    return jsonify({'message':'✅ 成功录入'})
 
-    existing = UTRRecord.query.filter_by(utr=utr).first()
-    if existing:
-        return jsonify({'status': 'duplicate'})
-    
-    new_record = UTRRecord(utr=utr, remark=remark)
-    db.session.add(new_record)
-    db.session.commit()
-    return jsonify({'status': 'success'})
-
-# 批量查询
-@app.route('/bulk-check', methods=['POST'])
-def bulk_check():
-    data = request.get_json()
-    utrs = data.get('utrs', [])
-    results = []
-
-    for utr in utrs:
-        found = UTRRecord.query.filter_by(utr=utr.strip()).first()
-        results.append({'utr': utr, 'exists': bool(found)})
-
-    return jsonify(results)
-
-# 查询所有记录
-@app.route('/all', methods=['GET'])
+@app.route('/all')
 def all_utrs():
-    all_data = UTRRecord.query.all()
-    result = [{'utr': r.utr, 'remark': r.remark} for r in all_data]
-    return jsonify(result)
+    recs = UTRRecord.query.order_by(UTRRecord.id.desc()).all()
+    return jsonify([{'id':r.id,'utr':r.utr,'remark':r.remark,'created_at':r.created_at.strftime('%Y-%m-%d %H:%M:%S')} for r in recs])
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+@app.route('/delete', methods=['POST'])
+def delete():
+    ids = request.get_json().get('ids',[])
+    for i in ids:
+        r=UTRRecord.query.get(i)
+        if r:
+            db.session.delete(r)
+    db.session.commit()
+    return jsonify({'message':f'删除 {len(ids)} 条记录'})
+
+@app.route('/export')
+def export():
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active; ws.append(['UTR','备注','创建时间'])
+    for r in UTRRecord.query.order_by(UTRRecord.id).all():
+        ws.append([r.utr, r.remark or '', r.created_at.strftime('%Y-%m-%d %H:%M:%S')])
+    from io import BytesIO
+    buf=BytesIO(); wb.save(buf); buf.seek(0)
+    return (buf.getvalue(), 200, {
+      'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':'attachment; filename="utr_data.xlsx"'
+    })
+
+if __name__=='__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT',5000)), debug=False)
