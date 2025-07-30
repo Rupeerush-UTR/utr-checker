@@ -1,4 +1,3 @@
-india_tz = timezone('Asia/Kolkata')
 from flask import Flask, render_template, request, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
