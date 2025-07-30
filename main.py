@@ -53,21 +53,21 @@ def delete(utr_id):
 
 @app.route('/update_note/<int:utr_id>', methods=['POST'])
 def update_note(utr_id):
-    new_note = request.form.get('new_note', '').strip()
+    new_note = request.form.get('note', '').strip()  # HTML表单中字段是 note
     record = UTR.query.get(utr_id)
     if record:
         record.note = new_note
         db.session.commit()
     return redirect(url_for('index', message='备注已更新'))
 
-@app.route('/import', methods=['POST'])
-def import_excel():
+@app.route('/batch_import', methods=['POST'])
+def batch_import():
     file = request.files.get('file')
     if not file:
         return redirect(url_for('index', message='请上传文件'))
 
     try:
-        df = pd.read_excel(file)
+        df = pd.read_csv(file)
         count = 0
         for _, row in df.iterrows():
             utr = str(row.get('utr', '')).strip()
