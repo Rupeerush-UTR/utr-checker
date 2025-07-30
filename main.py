@@ -89,7 +89,7 @@ def export_excel():
         'ID': r.id,
         'UTR': r.utr,
         '备注': r.note,
-        '时间': r.created_at.astimezone(india_tz).strftime('%Y-%m-%d %H:%M:%S')
+        '时间': r.created_at.replace(tzinfo=timezone('UTC')).astimezone(india_tz).strftime('%Y-%m-%d %H:%M:%S')
     } for r in records]
     df = pd.DataFrame(data)
     output = BytesIO()
