@@ -1,67 +1,90 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_file
 import os
+import io
+import csv
 
 app = Flask(__name__)
 
-# 存储：UTR -> 备注
-utr_dict = {}
+# 内存中存储UTR和备注
+utr_data = []  # 每项为 dict: {"utr": ..., "remark": ...}
 
-# HTML 页面
+# 简易HTML模板
 HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
   <title>UTR 检查工具</title>
+  <meta charset="utf-8">
 </head>
 <body>
-  <h2>UTR 检查工具</h2>
-  <input id="utr" placeholder="UTR">
-  <input id="note" placeholder="备注">
-  <button onclick="submit()">提交</button>
-  <br><br>
-
-  <textarea id="bulk" rows="5" cols="40" placeholder="多个UTR查询，用换行或逗号分隔"></textarea>
-  <br>
-  <button onclick="bulkCheck()">批量查询</button>
+  <h2>UTR 录入与重复检查</h2>
+  <input type="text" id="utrInput" placeholder="输入 UTR">
+  <input type="text" id="remarkInput" placeholder="备注（可选）">
+  <button onclick="submitUTR()">提交</button>
+  <button onclick="bulkCheck()">批量提交</button>
   <button onclick="showAll()">查看明细</button>
-
-  <pre id="result"></pre>
+  <button onclick="exportCSV()">导出Excel</button>
+  <br><br>
+  <textarea id="bulkInput" placeholder="一行一个UTR，可附备注，用英文逗号分隔"></textarea>
+  <br><br>
+  <input type="text" id="searchInput" oninput="searchData()" placeholder="搜索UTR或备注">
+  <div id="result"></div>
+  <ul id="utrList"></ul>
 
 <script>
-async function submit() {
-  const utr = document.getElementById("utr").value.trim();
-  const note = document.getElementById("note").value.trim();
-  const res = await fetch("/check", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ utr, note })
-  });
-  const data = await res.json();
-  document.getElementById("result").innerText = data.message;
-}
-
-async function bulkCheck() {
-  const text = document.getElementById("bulk").value;
-  const list = text.split(/[\n,]+/).map(s => s.trim()).filter(s => s);
-  const res = await fetch("/batch", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ utrs: list })
-  });
-  const data = await res.json();
-  document.getElementById("result").innerText = data.results.join("\\n");
-}
-
-async function showAll() {
-  const res = await fetch("/all");
-  const data = await res.json();
-  let output = "全部已录入UTR明细：\\n";
-  for (const [utr, note] of Object.entries(data)) {
-    output += `- ${utr}：${note}\\n`;
+  async function submitUTR() {
+    const utr = document.getElementById('utrInput').value.trim();
+    const remark = document.getElementById('remarkInput').value.trim();
+    const res = await fetch('/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ utr, remark })
+    });
+    const data = await res.json();
+    document.getElementById('result').innerText = data.message;
   }
-  document.getElementById("result").innerText = output;
-}
+
+  async function bulkCheck() {
+    const lines = document.getElementById('bulkInput').value.trim().split('\n');
+    const list = [];
+    for (const line of lines) {
+      if (line.trim()) {
+        const [utr, remark] = line.split(',').map(x => x.trim());
+        list.push({ utr, remark: remark || '' });
+      }
+    }
+    const res = await fetch('/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ list })
+    });
+    const data = await res.json();
+    document.getElementById('result').innerText = data.message;
+  }
+
+  async function showAll() {
+    const res = await fetch('/list');
+    const data = await res.json();
+    const ul = document.getElementById('utrList');
+    ul.innerHTML = '';
+    data.forEach(item => {
+      const li = document.createElement('li');
+      li.innerText = `${item.utr} - ${item.remark}`;
+      ul.appendChild(li);
+    });
+  }
+
+  async function exportCSV() {
+    window.location.href = '/export';
+  }
+
+  function searchData() {
+    const keyword = document.getElementById('searchInput').value.toLowerCase();
+    const items = document.querySelectorAll('#utrList li');
+    items.forEach(li => {
+      li.style.display = li.innerText.toLowerCase().includes(keyword) ? '' : 'none';
+    });
+  }
 </script>
 </body>
 </html>
@@ -75,34 +98,39 @@ def index():
 def check_utr():
     data = request.get_json()
     utr = data.get('utr', '').strip()
-    note = data.get('note', '').strip()
+    remark = data.get('remark', '').strip()
     if not utr:
-        return jsonify({"message": "❌ 请输入有效的 UTR"})
-    if utr in utr_dict:
+        return jsonify({"message": "请输入有效的UTR"})
+    if any(x['utr'] == utr for x in utr_data):
         return jsonify({"message": f"❌ 已存在重复 UTR: {utr}"})
-    utr_dict[utr] = note or "-"
-    return jsonify({"message": f"✅ UTR {utr} 已成功录入，备注：{utr_dict[utr]}"})
+    utr_data.append({"utr": utr, "remark": remark})
+    return jsonify({"message": f"✅ UTR {utr} 已成功录入，无重复。"})
 
-@app.route('/batch', methods=['POST'])
-def batch_check():
+@app.route('/bulk', methods=['POST'])
+def bulk_check():
     data = request.get_json()
-    utrs = data.get('utrs', [])
-    results = []
-    for utr in utrs:
-        utr = utr.strip()
-        if not utr:
-            continue
-        if utr in utr_dict:
-            results.append(f"❌ 已存在重复：{utr}")
-        else:
-            utr_dict[utr] = "-"
-            results.append(f"✅ 新录入：{utr}")
-    return jsonify({"results": results})
+    added = 0
+    for item in data.get('list', []):
+        utr = item.get('utr', '').strip()
+        remark = item.get('remark', '').strip()
+        if utr and not any(x['utr'] == utr for x in utr_data):
+            utr_data.append({"utr": utr, "remark": remark})
+            added += 1
+    return jsonify({"message": f"✅ 成功录入 {added} 个新UTR"})
 
-@app.route('/all')
-def all_utrs():
-    return jsonify(utr_dict)
+@app.route('/list')
+def get_list():
+    return jsonify(utr_data)
+
+@app.route('/export')
+def export():
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["utr", "remark"])
+    writer.writeheader()
+    writer.writerows(utr_data)
+    output.seek(0)
+    return send_file(io.BytesIO(output.getvalue().encode('utf-8')), mimetype='text/csv', download_name='utr_data.csv', as_attachment=True)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=False)
