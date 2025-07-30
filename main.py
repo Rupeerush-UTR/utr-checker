@@ -1,135 +1,102 @@
-from flask import Flask, render_template, request, redirect, send_file
-import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, send_file
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 import pandas as pd
-from io import BytesIO
 import os
+from io import BytesIO
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///utr_data.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'uploads'
+db = SQLAlchemy(app)
 
-DB_FILE = 'utr_records.db'
+class UTR(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    utr = db.Column(db.String(100), unique=True, nullable=False)
+    note = db.Column(db.String(200), default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# ✅ 自动初始化数据库
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS utr_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            utr TEXT UNIQUE NOT NULL,
-            note TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# ✅ 首页（查询 + 展示记录）
 @app.route('/', methods=['GET'])
 def index():
-    query = request.args.get('query', '')
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
+    query = request.args.get('query', '').strip()
+    message = request.args.get('message', '')
     if query:
-        cursor.execute("SELECT * FROM utr_records WHERE utr LIKE ? ORDER BY id DESC", (f'%{query}%',))
+        records = UTR.query.filter(UTR.utr.contains(query)).order_by(UTR.created_at.desc()).all()
     else:
-        cursor.execute("SELECT * FROM utr_records ORDER BY id DESC")
+        records = UTR.query.order_by(UTR.created_at.desc()).all()
+    return render_template('index.html', records=records, message=message, query=query)
 
-    records = cursor.fetchall()
-    conn.close()
-
-    return render_template('index.html', records=records, query=query, message='')
-
-# ✅ 单条录入
 @app.route('/add', methods=['POST'])
 def add():
-    utr = request.form.get('utr').strip()
+    utr = request.form.get('utr', '').strip()
     note = request.form.get('note', '').strip()
-
     if not utr:
-        return redirect('/')
+        return redirect(url_for('index', message='UTR 不能为空'))
 
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM utr_records WHERE utr = ?", (utr,))
-    exists = cursor.fetchone()
+    existing = UTR.query.filter_by(utr=utr).first()
+    if existing:
+        return redirect(url_for('index', message='UTR 已存在'))
 
-    if exists:
-        message = f"UTR {utr} 已存在"
-    else:
-        cursor.execute("INSERT INTO utr_records (utr, note) VALUES (?, ?)", (utr, note))
-        conn.commit()
-        message = f"UTR {utr} 录入成功"
+    new_record = UTR(utr=utr, note=note)
+    db.session.add(new_record)
+    db.session.commit()
+    return redirect(url_for('index', message='录入成功'))
 
-    conn.close()
-    return redirect(f"/?query={utr}")
+@app.route('/delete/<int:utr_id>', methods=['POST'])
+def delete(utr_id):
+    record = UTR.query.get(utr_id)
+    if record:
+        db.session.delete(record)
+        db.session.commit()
+    return redirect(url_for('index', message='删除成功'))
 
-# ✅ 删除记录
-@app.route('/delete/<int:record_id>')
-def delete(record_id):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM utr_records WHERE id = ?", (record_id,))
-    conn.commit()
-    conn.close()
-    return redirect('/')
+@app.route('/update_note/<int:utr_id>', methods=['POST'])
+def update_note(utr_id):
+    new_note = request.form.get('new_note', '').strip()
+    record = UTR.query.get(utr_id)
+    if record:
+        record.note = new_note
+        db.session.commit()
+    return redirect(url_for('index', message='备注已更新'))
 
-# ✅ 修改备注
-@app.route('/update_note/<int:record_id>', methods=['POST'])
-def update_note(record_id):
-    note = request.form.get('note', '').strip()
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE utr_records SET note = ? WHERE id = ?", (note, record_id))
-    conn.commit()
-    conn.close()
-    return redirect('/')
+@app.route('/import', methods=['POST'])
+def import_excel():
+    file = request.files.get('file')
+    if not file:
+        return redirect(url_for('index', message='请上传文件'))
 
-# ✅ 导出 Excel
+    try:
+        df = pd.read_excel(file)
+        count = 0
+        for _, row in df.iterrows():
+            utr = str(row.get('utr', '')).strip()
+            note = str(row.get('note', '')).strip()
+            if utr and not UTR.query.filter_by(utr=utr).first():
+                db.session.add(UTR(utr=utr, note=note))
+                count += 1
+        db.session.commit()
+        return redirect(url_for('index', message=f'成功导入 {count} 条记录'))
+    except Exception as e:
+        return redirect(url_for('index', message=f'导入失败: {str(e)}'))
+
 @app.route('/export')
-def export():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT * FROM utr_records ORDER BY id DESC", conn)
-    conn.close()
-
+def export_excel():
+    records = UTR.query.order_by(UTR.created_at.desc()).all()
+    data = [{
+        'ID': r.id,
+        'UTR': r.utr,
+        '备注': r.note,
+        '时间': r.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    } for r in records]
+    df = pd.DataFrame(data)
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='UTRs')
+    df.to_excel(output, index=False)
     output.seek(0)
-
-    return send_file(output, download_name="utr_records.xlsx", as_attachment=True)
-
-# ✅ 批量录入
-@app.route('/batch_add', methods=['POST'])
-def batch_add():
-    content = request.form.get('batch_input', '')
-    lines = content.strip().splitlines()
-    added = 0
-    skipped = 0
-
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    for line in lines:
-        if not line.strip():
-            continue
-        parts = line.strip().split(',')
-        utr = parts[0].strip()
-        note = parts[1].strip() if len(parts) > 1 else ''
-        try:
-            cursor.execute("INSERT INTO utr_records (utr, note) VALUES (?, ?)", (utr, note))
-            added += 1
-        except sqlite3.IntegrityError:
-            skipped += 1
-
-    conn.commit()
-    conn.close()
-
-    message = f"批量录入完成：新增 {added} 条，跳过 {skipped} 条（已存在）"
-    return redirect(f"/?query=&message={message}")
+    return send_file(output, as_attachment=True, download_name='utr_export.xlsx')
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, host='0.0.0.0', port=10000)
