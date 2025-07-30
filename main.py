@@ -28,7 +28,19 @@ def index():
         records = UTR.query.filter(UTR.utr.contains(query)).order_by(UTR.created_at.desc()).all()
     else:
         records = UTR.query.order_by(UTR.created_at.desc()).all()
-    return render_template('index.html', records=records, message=message, query=query)
+
+    # 转为印度时间并准备传给模板
+    display_records = []
+    for r in records:
+        india_time = r.created_at.replace(tzinfo=pytz.UTC).astimezone(india_tz).strftime('%Y-%m-%d %H:%M:%S')
+        display_records.append({
+            'id': r.id,
+            'utr': r.utr,
+            'note': r.note,
+            'created_at': india_time
+        })
+
+    return render_template('index.html', records=display_records, message=message, query=query)
 
 @app.route('/add', methods=['POST'])
 def add():
