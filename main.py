@@ -2,8 +2,20 @@ from flask import Flask, request, jsonify, render_template_string
 import os
 
 app = Flask(__name__)
+
+# 保存UTR的文件路径
+UTR_FILE = "utrs.txt"
+
+# 内存中存储UTR集合
 utr_set = set()
 
+# 启动时从文件加载UTR
+if os.path.exists(UTR_FILE):
+    with open(UTR_FILE, 'r') as f:
+        for line in f:
+            utr_set.add(line.strip())
+
+# 简易HTML页面
 HTML = '''
 <!DOCTYPE html>
 <html>
@@ -51,8 +63,10 @@ def check_utr():
         return jsonify({"message": f"❌ 已存在重复 UTR: {utr}"})
     else:
         utr_set.add(utr)
+        with open(UTR_FILE, 'a') as f:
+            f.write(utr + '\n')
         return jsonify({"message": f"✅ UTR {utr} 已成功录入，无重复。"})
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
