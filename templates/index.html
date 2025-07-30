@@ -98,7 +98,7 @@
 </form>
 
                     </td>
-                    <td>{{ record.created_at }}</td>
+                    <td>{{ record.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                     <td>
                         <form action="/delete/{{ record.id }}" method="post" style="display:inline;">
                             <button class="delete-button" type="submit">删除</button>
