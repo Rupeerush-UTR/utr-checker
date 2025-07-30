@@ -92,10 +92,11 @@
                     <td>{{ record.id }}</td>
                     <td>{{ record.utr }}</td>
                     <td>
-                        <form action="/update_note/{{ record.id }}" method="post" style="display:inline;">
-                        <input type="text" name="new_note" value="{{ record.note or '' }}">
-                        <button type="submit">更新</button>
-                        </form>
+<form action="/update_note/{{ record.id }}" method="post" style="display:inline;">
+    <input type="text" name="note" value="{{ record.note or '' }}">
+    <button type="submit">更新</button>
+</form>
+
                     </td>
                     <td>{{ record.created_at }}</td>
                     <td>
