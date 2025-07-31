@@ -111,16 +111,16 @@ def export_excel():
     return send_file(output, as_attachment=True, download_name='utr_export.xlsx')
 
 if __name__ == '__main__':
+    import threading
+    from telegram_bot import run_bot
+
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
     with app.app_context():
         db.create_all()
-    app.run(debug=True, host='0.0.0.0', port=10000)
-if __name__ == '__main__':
-    from telegram_bot import run_bot
-    import threading
 
-    # 启动 Telegram bot
+    # 启动 Telegram Bot
     threading.Thread(target=run_bot).start()
 
     # 启动 Flask
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
