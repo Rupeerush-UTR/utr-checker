@@ -1,39 +1,46 @@
 # telegram_bot.py
 
 from telegram.ext import ApplicationBuilder, CommandHandler
-from models import db, UTR  # 通过 models.py 单独定义模型，避免循环导入
-
+import asyncio
+from models import db, UTR
+from datetime import datetime
 import os
 
-TOKEN = os.getenv('BOT_TOKEN', '你的默认token')
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '你的bot token放这里')
 
 async def query(update, context):
     if len(context.args) == 0:
-        await update.message.reply_text("Usage: /query <UTR>")
+        await update.message.reply_text("请输入 UTR，如：/query 123456")
         return
     utr = context.args[0].strip()
     record = UTR.query.filter_by(utr=utr).first()
     if record:
-        await update.message.reply_text(f"已存在\nUTR: {record.utr}\n备注: {record.note}")
+        await update.message.reply_text(f"UTR 已存在\n备注: {record.note}")
     else:
-        await update.message.reply_text("UTR 未找到")
+        await update.message.reply_text("UTR 未录入")
 
 async def add(update, context):
     if len(context.args) == 0:
-        await update.message.reply_text("Usage: /add <UTR> [备注]")
+        await update.message.reply_text("请输入 UTR，如：/add 123456 备注可选")
         return
     utr = context.args[0].strip()
-    note = ' '.join(context.args[1:]) if len(context.args) > 1 else ''
+    note = " ".join(context.args[1:]) if len(context.args) > 1 else ''
     if UTR.query.filter_by(utr=utr).first():
         await update.message.reply_text("UTR 已存在")
-        return
-    new_record = UTR(utr=utr, note=note)
-    db.session.add(new_record)
-    db.session.commit()
-    await update.message.reply_text("添加成功")
+    else:
+        new_record = UTR(utr=utr, note=note)
+        db.session.add(new_record)
+        db.session.commit()
+        await update.message.reply_text("UTR 添加成功")
 
 def run_bot():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("query", query))
-    app.add_handler(CommandHandler("add", add))
-    app.run_polling()
+    async def main():
+        application = ApplicationBuilder().token(BOT_TOKEN).build()
+        application.add_handler(CommandHandler("query", query))
+        application.add_handler(CommandHandler("add", add))
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        await application.idle()
+
+    asyncio.run(main())
