@@ -1,15 +1,16 @@
-import asyncio
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from models import db, UTR
-from dotenv import load_dotenv
 import os
+import asyncio
+import threading
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
+from dotenv import load_dotenv
+from models import db, UTR
 
 load_dotenv()
-TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("欢迎使用 UTR 工具。使用 /add <UTR> <备注> 添加，/query <UTR> 查询。")
+    await update.message.reply_text("欢迎使用 UTR 工具。\n使用 /add <UTR> <备注> 添加，/query <UTR> 查询。")
 
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -45,15 +46,20 @@ async def query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"发生错误：{str(e)}")
 
-def run_bot():
+async def main():
     if not TOKEN:
         print("❌ TELEGRAM_BOT_TOKEN 未设置")
         return
 
-    # 显式创建事件循环（为线程兼容而加）
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    application = ApplicationBuilder().token(TOKEN).build()
+    application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("add", add))
     application.add_handler(CommandHandler("query", query))
-    application.run_polling()
+
+    print("🤖 Telegram bot 正在启动...")
+    await application.run_polling()
+
+def run_bot():
+    # 在新线程中显式创建事件循环
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    asyncio.get_event_loop().run_until_complete(main())
