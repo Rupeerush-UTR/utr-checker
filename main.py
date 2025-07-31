@@ -7,6 +7,12 @@ india_tz = timezone('Asia/Kolkata')
 import pandas as pd
 import os
 from io import BytesIO
+from flask_sqlalchemy import SQLAlchemy
+db = SQLAlchemy()
+
+class UTRRecord(db.Model):
+    ...
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://utr_sj_user:l1QGJqrMyxksukna0QhZrhbfL9RbywAz@dpg-d24ui7vdiees739mrel0-a/utr_sj'
