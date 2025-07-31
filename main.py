@@ -20,6 +20,8 @@ india_tz = timezone('Asia/Kolkata')
 
 class UTRRecord(db.Model):
     __tablename__ = 'utr_record'  # 明确指定表名
+    __table_args__ = {'extend_existing': True}  # ✅ 加上这行
+
     id = db.Column(db.Integer, primary_key=True)
     utr = db.Column(db.String(100), unique=True, nullable=False)
     note = db.Column(db.String(200), default='')
