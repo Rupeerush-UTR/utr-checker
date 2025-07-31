@@ -115,3 +115,12 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=10000)
+if __name__ == '__main__':
+    from telegram_bot import run_bot
+    import threading
+
+    # 启动 Telegram bot
+    threading.Thread(target=run_bot).start()
+
+    # 启动 Flask
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
