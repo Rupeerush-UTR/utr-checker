@@ -60,5 +60,6 @@ async def main():
     await application.run_polling(close_loop=False, stop_signals=None)
 
 def run_bot():
-    loop = asyncio.get_event_loop()
-    loop.create_task(main())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
