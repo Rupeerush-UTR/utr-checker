@@ -2,20 +2,12 @@ from flask import Flask, render_template, request, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from pytz import timezone
-import pytz  # 要加上这行
-india_tz = timezone('Asia/Kolkata')
+import pytz
 import pandas as pd
 import os
 from io import BytesIO
-from flask_sqlalchemy import SQLAlchemy
-db = SQLAlchemy()
-
-class UTR(db.Model):
-    ...
-with app.app_context():
-    db.drop_all()  # ⚠️ 清空所有表结构（仅限无数据情况下使用）
-    db.create_all()
-
+import threading
+from telegram_bot import run_bot
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://utr_sj_user:l1QGJqrMyxksukna0QhZrhbfL9RbywAz@dpg-d24ui7vdiees739mrel0-a/utr_sj'
@@ -23,7 +15,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 db = SQLAlchemy(app)
 
+india_tz = timezone('Asia/Kolkata')
+
 class UTR(db.Model):
+    __tablename__ = 'utr_record'  # 明确指定表名
     id = db.Column(db.Integer, primary_key=True)
     utr = db.Column(db.String(100), unique=True, nullable=False)
     note = db.Column(db.String(200), default='')
@@ -38,7 +33,6 @@ def index():
     else:
         records = UTR.query.order_by(UTR.created_at.desc()).all()
 
-    # 转为印度时间并准备传给模板
     display_records = []
     for r in records:
         india_time = r.created_at.replace(tzinfo=pytz.UTC).astimezone(india_tz).strftime('%Y-%m-%d %H:%M:%S')
@@ -77,7 +71,7 @@ def delete(utr_id):
 
 @app.route('/update_note/<int:utr_id>', methods=['POST'])
 def update_note(utr_id):
-    new_note = request.form.get('note', '').strip()  # HTML表单中字段是 note
+    new_note = request.form.get('note', '').strip()
     record = UTR.query.get(utr_id)
     if record:
         record.note = new_note
@@ -120,16 +114,8 @@ def export_excel():
     return send_file(output, as_attachment=True, download_name='utr_export.xlsx')
 
 if __name__ == '__main__':
-    import threading
-    from telegram_bot import run_bot
-
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
     with app.app_context():
         db.create_all()
-
-    # 启动 Telegram Bot
     threading.Thread(target=run_bot).start()
-
-    # 启动 Flask
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
