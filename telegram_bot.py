@@ -5,8 +5,10 @@ import asyncio
 from models import db, UTR
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 
-BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '你的bot token放这里')
+load_dotenv()
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 async def query(update, context):
     if len(context.args) == 0:
