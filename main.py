@@ -12,6 +12,9 @@ db = SQLAlchemy()
 
 class UTR(db.Model):
     ...
+with app.app_context():
+    db.drop_all()  # ⚠️ 清空所有表结构（仅限无数据情况下使用）
+    db.create_all()
 
 
 app = Flask(__name__)
