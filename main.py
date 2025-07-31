@@ -18,7 +18,7 @@ db.init_app(app)
 
 india_tz = timezone('Asia/Kolkata')
 
-class UTR(db.Model):
+class UTRRecord(db.Model):
     __tablename__ = 'utr_record'  # 明确指定表名
     id = db.Column(db.Integer, primary_key=True)
     utr = db.Column(db.String(100), unique=True, nullable=False)
