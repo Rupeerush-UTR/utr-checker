@@ -1,13 +1,13 @@
 # database.py
 
-from models import db, UTRRecord
+from models import db, UTR
 from datetime import datetime
 
 def add_utr(utr_number, remark):
-    exists = UTRRecord.query.filter_by(utr=utr_number).first()
+    exists = UTR.query.filter_by(utr=utr_number).first()
     if exists:
         return False  # 已存在
-    new_record = UTRRecord(
+    new_record = UTR(
         utr=utr_number,
         remark=remark,
         created_at=datetime.now()
@@ -17,4 +17,4 @@ def add_utr(utr_number, remark):
     return True
 
 def query_utr(utr_number):
-    return UTRRecord.query.filter_by(utr=utr_number).first()
+    return UTR.query.filter_by(utr=utr_number).first()
