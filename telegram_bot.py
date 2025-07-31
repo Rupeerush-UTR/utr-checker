@@ -37,7 +37,7 @@ async def add(update, context):
 
 def run_bot():
     async def main():
-        application = ApplicationBuilder().token(BOT_TOKEN).build()
+        application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
         application.add_handler(CommandHandler("query", query))
         application.add_handler(CommandHandler("add", add))
         await application.initialize()
