@@ -33,7 +33,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     utr = context.args[0]
     note = " ".join(context.args[1:]) if len(context.args) > 1 else ""
-    success = add_utr(utr, remark)
+    success = add_utr(utr, note)
     if success:
         await update.message.reply_text("✅ 添加成功")
     else:
