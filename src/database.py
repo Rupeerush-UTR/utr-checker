@@ -9,7 +9,7 @@ def add_utr(utr_number, remark):
         return False  # 已存在
     new_record = UTR(
         utr=utr_number,
-        remark=remark,
+        note=note,
         created_at=datetime.now()
     )
     db.session.add(new_record)
