@@ -39,7 +39,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 🔄 修改：封装成创建 Application 的函数
 async def create_bot_application():
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start_handler))
     app.add_handler(CommandHandler("query", query_handler))
     app.add_handler(CommandHandler("add", add_handler))
