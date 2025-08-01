@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: utr-checker
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: python main.py
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+    buildFilter:
+      paths:
+        - src/**
+    autoDeploy: true
+    rootDir: src
