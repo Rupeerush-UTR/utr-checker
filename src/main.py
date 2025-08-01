@@ -18,6 +18,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 db.init_app(app)
 
+with app.app_context():
+    db.drop_all()
+    db.create_all()
+
 india_tz = timezone('Asia/Kolkata')
 
 @app.route('/', methods=['GET'])
