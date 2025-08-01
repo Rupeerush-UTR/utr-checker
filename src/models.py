@@ -9,7 +9,7 @@ class UTR(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     utr = db.Column(db.String(100), unique=True, nullable=False)
-    remark = db.Column(db.String(255), nullable=True)
+    note = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
