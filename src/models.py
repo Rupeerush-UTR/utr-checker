@@ -4,7 +4,7 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-class UTRRecord(db.Model):
+class UTR(db.Model):
     __tablename__ = 'utr_records'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -13,4 +13,4 @@ class UTRRecord(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return f"<UTRRecord {self.utr}>"
+        return f"<UTR {self.utr}>"
