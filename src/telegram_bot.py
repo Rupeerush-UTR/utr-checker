@@ -51,4 +51,5 @@ def run_bot():
     application.add_handler(CommandHandler("query", query))
     application.add_handler(CommandHandler("add", add))
 
-    application.run_polling()
+    import asyncio
+    asyncio.run(application.run_polling())
