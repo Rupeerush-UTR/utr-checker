@@ -4,14 +4,12 @@ from datetime import datetime
 import pandas as pd
 from io import BytesIO
 import os
-from models import db, UTR
+import asyncio
 import threading
 
-from telegram_bot import run_bot  # 注意：导入的是 run_bot，不要括号！
+from models import db, UTR
 
 app = Flask(__name__)
-
-# ✅ 读取数据库连接字符串（Render环境会提供 DATABASE_URL）
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
@@ -54,16 +52,15 @@ def export():
     output.seek(0)
     return send_file(output, as_attachment=True, download_name='utrs.xlsx')
 
-# ✅ 主入口：启动 Flask + 启动 Telegram Bot
+# 🔄 同时启动 Flask 和 Bot
+async def start_all():
+    from telegram_bot import run_bot
+    await run_bot()
+
+def start_flask():
+    app.run(host="0.0.0.0", port=10000)
+
 if __name__ == '__main__':
-    def start_flask():
-        app.run(host="0.0.0.0", port=10000)
-
-    def start_bot():
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(run_bot())
-
-    threading.Thread(target=start_flask).start()
-    threading.Thread(target=start_bot).start()
+    flask_thread = threading.Thread(target=start_flask)
+    flask_thread.start()
+    asyncio.run(start_all())
