@@ -38,17 +38,18 @@ async def add_utr(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     import asyncio
     from flask import Flask
-    from main import app  # 引用 Flask 实例
+    from main import app
+    from telegram.ext import ApplicationBuilder, CommandHandler
+    from telegram.commands import query_utr, add_utr
 
     async def main():
+        print("🚀 Telegram bot 正在启动...")
         application = ApplicationBuilder().token(TOKEN).build()
+
         application.add_handler(CommandHandler("query", query_utr))
         application.add_handler(CommandHandler("add", add_utr))
-        await application.initialize()
-        await application.start()
-        await application.updater.start_polling()
-        await application.updater.idle()
+
+        await application.run_polling()  # ✅ 改成这行，自动完成所有初始化、启动、监听、阻塞
 
     with app.app_context():
         asyncio.run(main())
-
