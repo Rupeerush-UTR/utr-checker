@@ -1,7 +1,10 @@
-import os
+
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from database import add_utr, query_utr
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 import pytz
 india_tz = pytz.timezone('Asia/Kolkata')
