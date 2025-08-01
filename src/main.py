@@ -58,7 +58,7 @@ def export():
 
 # 🔄 新增：异步启动 bot 和 Flask（在主线程）
 async def start_all():
-    from telegram_bot import run_bot()
+    from telegram_bot import run_bot
     print("🤖 Telegram Bot 正在启动...")
 
     bot_app = await run_bot()
