@@ -119,12 +119,17 @@ def start_bot():
     asyncio.set_event_loop(asyncio.new_event_loop())
     run_bot()
 
-def start_flask():
+def start_bot():
+    run_bot()  # 启动 Telegram bot
+
+if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     with app.app_context():
         db.create_all()
+
+    # 在子线程启动 Telegram bot
+    threading.Thread(target=start_bot, daemon=True).start()
+
+    # 在主线程启动 Flask（Render 必须主线程绑定端口）
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
 
-if __name__ == '__main__':
-    threading.Thread(target=start_flask).start()
-    run_bot()  # 在主线程运行 bot，避免 signal 错误
