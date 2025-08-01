@@ -52,7 +52,7 @@ def export():
     output.seek(0)
     return send_file(output, as_attachment=True, download_name='utrs.xlsx')
 
-# 🔄 同时启动 Flask 和 Bot
+# 启动 Flask + Bot
 async def start_all():
     from telegram_bot import run_bot
     await run_bot()
