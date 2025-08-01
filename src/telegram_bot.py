@@ -1,50 +1,54 @@
-from telegram.ext import ApplicationBuilder, CommandHandler
-from models import db, UTR
 import os
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from models import db, UTR
 
-async def start(update, context):
-    await update.message.reply_text("欢迎使用 UTR 工具！")
+# 从环境变量中读取 Telegram Token（Render 后台设置）
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
-async def query(update, context):
-    if len(context.args) < 1:
-        await update.message.reply_text("请输入要查询的 UTR，例如 /query ABC123")
+async def query_utr(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("请提供要查询的UTR，例如：/query 123456")
         return
 
-    search = context.args[0]
-    result = UTR.query.filter_by(utr=search).first()
-
-    if result:
-        await update.message.reply_text(f"UTR 已存在，备注：{result.note or '无'}")
+    utr = context.args[0]
+    match = UTR.query.filter_by(utr=utr).first()
+    if match:
+        await update.message.reply_text(f"✅ 已存在：{utr}（备注：{match.remark}）")
     else:
-        await update.message.reply_text("未找到该 UTR。")
+        await update.message.reply_text(f"❌ 未找到：{utr}")
 
-async def add(update, context):
-    if len(context.args) < 1:
-        await update.message.reply_text("请输入要添加的 UTR，例如 /add ABC123 [备注]")
+async def add_utr(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("请提供UTR，例如：/add 123456 备注内容")
         return
 
-    utr_value = context.args[0]
-    note = ' '.join(context.args[1:]) if len(context.args) > 1 else ''
+    utr = context.args[0]
+    remark = " ".join(context.args[1:]) if len(context.args) > 1 else ""
 
-    existing = UTR.query.filter_by(utr=utr_value).first()
+    existing = UTR.query.filter_by(utr=utr).first()
     if existing:
-        await update.message.reply_text("该 UTR 已存在，不能重复添加。")
+        await update.message.reply_text("⚠️ 已存在该UTR！")
     else:
-        new_utr = UTR(utr=utr_value, note=note)
+        new_utr = UTR(utr=utr, remark=remark)
         db.session.add(new_utr)
         db.session.commit()
-        await update.message.reply_text("添加成功！")
+        await update.message.reply_text("✅ 添加成功！")
 
-async def start_bot(app):
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    application = ApplicationBuilder().token(bot_token).build()
+def run_bot():
+    import asyncio
+    from flask import Flask
+    from main import app  # 引用 Flask 实例
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("query", query))
-    application.add_handler(CommandHandler("add", add))
+    async def main():
+        application = ApplicationBuilder().token(TOKEN).build()
+        application.add_handler(CommandHandler("query", query_utr))
+        application.add_handler(CommandHandler("add", add_utr))
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        await application.updater.idle()
 
-    await application.initialize()
-    await application.start()
-    print("Telegram bot running...")
-    await application.updater.start_polling()
-    await application.updater.idle()
+    with app.app_context():
+        asyncio.run(main())
+
