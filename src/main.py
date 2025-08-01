@@ -11,7 +11,7 @@ from models import db, UTR
 from telegram_bot import run_bot
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://utr_sj_user:l1QGJqrMyxksukna0QhZrhbfL9RbywAz@dpg-d24ui7vdiees739mrel0-a/utr_sj'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 db.init_app(app)
