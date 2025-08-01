@@ -113,9 +113,15 @@ def export_excel():
     output.seek(0)
     return send_file(output, as_attachment=True, download_name='utr_export.xlsx')
 
+import asyncio
+
+def start_bot():
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    run_bot()
+
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     with app.app_context():
         db.create_all()
-    threading.Thread(target=run_bot).start()
+    threading.Thread(target=start_bot).start()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
