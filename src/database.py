@@ -2,7 +2,7 @@
 
 from models import db, UTR
 from datetime import datetime
-from main import app  # 导入 Flask app 对象
+#from main import app  # 导入 Flask app 对象
 
 def add_utr(utr_number, note):
     with app.app_context():
