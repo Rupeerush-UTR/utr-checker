@@ -7,9 +7,9 @@ import pandas as pd
 from io import BytesIO
 import threading
 from models import db, UTR
-from telegram_bot import run_bot
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -17,10 +17,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 db.init_app(app)
-
-#with app.app_context():
-#    db.drop_all()
-#    db.create_all()
 
 india_tz = timezone('Asia/Kolkata')
 
@@ -113,23 +109,18 @@ def export_excel():
     output.seek(0)
     return send_file(output, as_attachment=True, download_name='utr_export.xlsx')
 
-import asyncio
-
+# --- 启动 Telegram bot 的函数 ---
 def start_bot():
-    asyncio.set_event_loop(asyncio.new_event_loop())
+    from telegram_bot import run_bot  # 避免循环引用，放在函数内导入
     run_bot()
-
-def start_bot():
-    run_bot()  # 启动 Telegram bot
 
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     with app.app_context():
         db.create_all()
 
-    # 在子线程启动 Telegram bot
+    # 子线程运行 bot
     threading.Thread(target=start_bot, daemon=True).start()
 
-    # 在主线程启动 Flask（Render 必须主线程绑定端口）
+    # 主线程运行 Flask（Render 要求主线程绑定端口）
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
