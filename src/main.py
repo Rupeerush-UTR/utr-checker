@@ -8,7 +8,7 @@ from models import db, UTR
 import asyncio
 import threading
 
-from telegram_bot import create_bot_application  # 必须在这引入，否则启动 bot 会报错
+from telegram_bot import run_bot  # 必须在这引入，否则启动 bot 会报错
 
 app = Flask(__name__)
 
