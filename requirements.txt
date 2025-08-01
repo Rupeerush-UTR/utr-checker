@@ -1,6 +1,4 @@
 Flask
-Flask_SQLAlchemy
-pandas
-openpyxl
-python-telegram-bot==20.7
+Flask-SQLAlchemy
 psycopg2-binary
+python-telegram-bot==20.6
