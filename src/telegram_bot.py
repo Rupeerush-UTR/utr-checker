@@ -4,7 +4,7 @@ from models import db, UTR
 from sqlalchemy.exc import SQLAlchemyError
 import os
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or "你的真实 token"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 async def query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) != 1:
