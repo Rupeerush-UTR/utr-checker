@@ -18,7 +18,7 @@ db.init_app(app)
 
 india_tz = timezone('Asia/Kolkata')
 
-class UTRRecord(db.Model):
+class UTR(db.Model):
     __tablename__ = 'utr_record'  # 明确指定表名
     __table_args__ = {'extend_existing': True}  # ✅ 加上这行
 
