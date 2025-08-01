@@ -23,7 +23,7 @@ async def query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     record = query_utr(utr)
     if record:
         time_str = record.created_at.replace(tzinfo=pytz.UTC).astimezone(india_tz).strftime('%Y-%m-%d %H:%M:%S')
-    await update.message.reply_text(f"✅ 已存在\n备注：{record.note or '无'}\n时间：{time_str}")
+        await update.message.reply_text(f"✅ 已存在\n备注：{record.note or '无'}\n时间：{time_str}")
     else:
         await update.message.reply_text("❌ 未找到")
 
