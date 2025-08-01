@@ -4,11 +4,13 @@ from datetime import datetime
 from pytz import timezone
 import pytz
 import pandas as pd
-import os
 from io import BytesIO
 import threading
 from models import db, UTR
 from telegram_bot import run_bot
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
