@@ -3,14 +3,19 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import pandas as pd
 from io import BytesIO
+import os
 from models import db, UTR
-from telegram_bot import create_bot_application  # 修改点
 import asyncio
 import threading
 
+from telegram_bot import create_bot_application  # 必须在这引入，否则启动 bot 会报错
+
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = '你的数据库连接字符串'
+
+# ✅ 从环境变量读取数据库连接字符串
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db.init_app(app)
 
 @app.route('/')
