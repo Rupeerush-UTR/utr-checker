@@ -1,71 +1,74 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-from io import BytesIO
 import pandas as pd
-import os
+from io import BytesIO
+from models import db, UTR
+from telegram_bot import create_bot_application  # 修改点
+import asyncio
 import threading
 
-from models import db, UTR
-
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
+app.config['SQLALCHEMY_DATABASE_URI'] = '你的数据库连接字符串'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'uploads'
 db.init_app(app)
 
 @app.route('/')
 def index():
-    utrs = UTR.query.order_by(UTR.created_at.desc()).all()
+    utrs = UTR.query.order_by(UTR.timestamp.desc()).all()
     return render_template('index.html', utrs=utrs)
 
 @app.route('/add', methods=['POST'])
 def add():
-    utr_value = request.form['utr']
-    remark = request.form.get('remark', '')
-    if UTR.query.filter_by(utr=utr_value).first():
+    utr = request.form['utr'].strip()
+    remark = request.form.get('remark', '').strip()
+    if not utr:
         return redirect(url_for('index'))
-    new_utr = UTR(utr=utr_value, remark=remark)
+    if UTR.query.filter_by(utr=utr).first():
+        return redirect(url_for('index'))
+    new_utr = UTR(utr=utr, remark=remark)
     db.session.add(new_utr)
     db.session.commit()
     return redirect(url_for('index'))
 
-@app.route('/delete/<int:utr_id>')
-def delete(utr_id):
-    utr = UTR.query.get_or_404(utr_id)
-    db.session.delete(utr)
+@app.route('/delete/<int:id>', methods=['POST'])
+def delete(id):
+    record = UTR.query.get_or_404(id)
+    db.session.delete(record)
     db.session.commit()
     return redirect(url_for('index'))
 
 @app.route('/export')
 def export():
-    utrs = UTR.query.order_by(UTR.created_at.desc()).all()
-    data = [{'UTR': u.utr, '备注': u.remark, '添加时间': u.created_at.strftime('%Y-%m-%d %H:%M:%S')} for u in utrs]
+    utrs = UTR.query.order_by(UTR.timestamp.desc()).all()
+    data = [{'UTR': u.utr, '备注': u.remark, '时间': u.timestamp.strftime('%Y-%m-%d %H:%M:%S')} for u in utrs]
     df = pd.DataFrame(data)
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='UTRs')
+    df.to_excel(output, index=False)
     output.seek(0)
-    return send_file(output, download_name="utrs.xlsx", as_attachment=True)
+    return send_file(output, as_attachment=True, download_name='utrs.xlsx')
 
-@app.route('/search', methods=['GET'])
-def search():
-    keyword = request.args.get('keyword', '').strip()
-    results = UTR.query.filter(UTR.utr.contains(keyword)).order_by(UTR.created_at.desc()).all()
-    return render_template('index.html', utrs=results)
+# 🔄 新增：异步启动 bot 和 Flask（在主线程）
+async def start_all():
+    from telegram_bot import create_bot_application
+    print("🤖 Telegram Bot 正在启动...")
 
-@app.route('/update_remark/<int:utr_id>', methods=['POST'])
-def update_remark(utr_id):
-    utr = UTR.query.get_or_404(utr_id)
-    new_remark = request.form.get('remark', '')
-    utr.remark = new_remark
-    db.session.commit()
-    return redirect(url_for('index'))
+    bot_app = await create_bot_application()
+    await bot_app.initialize()
+    await bot_app.start()
+    await bot_app.updater.start_polling()
+    print("✅ Bot started polling")
 
-# 启动入口
 if __name__ == '__main__':
-    from telegram_bot import run_bot
-    # 启动 Telegram bot 放在子线程
-    threading.Thread(target=run_bot).start()
-    # Flask 必须主线程运行
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    with app.app_context():
+        db.create_all()
+
+    # 启动 Flask（用线程避免阻塞主线程）
+    def start_flask():
+        app.run(host="0.0.0.0", port=10000)
+
+    flask_thread = threading.Thread(target=start_flask)
+    flask_thread.start()
+
+    # 启动 Telegram bot（在主线程的 asyncio 事件循环中）
+    asyncio.run(start_all())
