@@ -15,7 +15,8 @@ async def query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     utr = context.args[0]
     record = query_utr(utr)
     if record:
-        await update.message.reply_text(f"✅ 已存在\n备注：{record.remark or '无'}\n时间：{record.timestamp}")
+    time_str = record.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    await update.message.reply_text(f"✅ 已存在\n备注：{record.note or '无'}\n时间：{time_str}")
     else:
         await update.message.reply_text("❌ 未找到")
 
@@ -24,7 +25,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("用法：/add <UTR> [备注]")
         return
     utr = context.args[0]
-    remark = " ".join(context.args[1:]) if len(context.args) > 1 else ""
+    note = " ".join(context.args[1:]) if len(context.args) > 1 else ""
     success = add_utr(utr, remark)
     if success:
         await update.message.reply_text("✅ 添加成功")
