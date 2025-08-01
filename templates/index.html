@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>UTR 工具</title>
+</head>
+<body>
+    <h2>添加 UTR</h2>
+    <form action="/add" method="post">
+        <input type="text" name="utr" placeholder="UTR" required>
+        <input type="text" name="remark" placeholder="备注">
+        <button type="submit">添加</button>
+    </form>
+
+    <h2>UTR 列表</h2>
+    <form action="/export" method="get"><button type="submit">导出 Excel</button></form>
+    <ul>
+        {% for u in utrs %}
+            <li>{{ u.utr }} - {{ u.remark }} - {{ u.timestamp }} 
+                <form action="/delete/{{ u.id }}" method="post" style="display:inline;">
+                    <button type="submit">删除</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
