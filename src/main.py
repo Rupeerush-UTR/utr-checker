@@ -56,27 +56,24 @@ def export():
     output.seek(0)
     return send_file(output, as_attachment=True, download_name='utrs.xlsx')
 
-# 🔄 新增：异步启动 bot 和 Flask（在主线程）
-async def start_all():
-    from telegram_bot import run_bot
-    print("🤖 Telegram Bot 正在启动...")
-
-    bot_app = await run_bot()
-    await bot_app.initialize()
-    await bot_app.start()
-    await bot_app.updater.start_polling()
-    print("✅ Bot started polling")
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
-    # 启动 Flask（用线程避免阻塞主线程）
+    # 启动 Flask（主线程）
     def start_flask():
         app.run(host="0.0.0.0", port=10000)
+
+    # 启动 Telegram bot（新线程 + 独立事件循环）
+    def start_bot():
+        import asyncio
+        from telegram_bot import run_bot
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(run_bot())
 
     flask_thread = threading.Thread(target=start_flask)
     flask_thread.start()
 
-    # 启动 Telegram bot（在主线程的 asyncio 事件循环中）
-    asyncio.run(start_all())
+    bot_thread = threading.Thread(target=start_bot)
+    bot_thread.start()
