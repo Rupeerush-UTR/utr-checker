@@ -5,20 +5,18 @@ import pandas as pd
 from io import BytesIO
 import os
 from models import db, UTR
-import asyncio
 import threading
 
-from telegram_bot import run_bot  # 必须在这引入，否则启动 bot 会报错
+from telegram_bot import run_bot  # 注意：导入的是 run_bot，不要括号！
 
 app = Flask(__name__)
 
-# ✅ 从环境变量读取数据库连接字符串
+# ✅ 读取数据库连接字符串（Render环境会提供 DATABASE_URL）
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 with app.app_context():
-    db.drop_all()
     db.create_all()
 
 @app.route('/')
@@ -56,24 +54,16 @@ def export():
     output.seek(0)
     return send_file(output, as_attachment=True, download_name='utrs.xlsx')
 
+# ✅ 主入口：启动 Flask + 启动 Telegram Bot
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-
-    # 启动 Flask（主线程）
     def start_flask():
         app.run(host="0.0.0.0", port=10000)
 
-    # 启动 Telegram bot（新线程 + 独立事件循环）
     def start_bot():
         import asyncio
-        from telegram_bot import run_bot
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(run_bot())
 
-    flask_thread = threading.Thread(target=start_flask)
-    flask_thread.start()
-
-    bot_thread = threading.Thread(target=start_bot)
-    bot_thread.start()
+    threading.Thread(target=start_flask).start()
+    threading.Thread(target=start_bot).start()
