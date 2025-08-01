@@ -1,0 +1,5 @@
+Flask
+Flask_SQLAlchemy
+pandas
+openpyxl
+python-telegram-bot==20.7
