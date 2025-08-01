@@ -3,7 +3,7 @@ from models import db, UTR
 from telegram_bot import run_telegram_bot
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://<你的Render数据库URL>'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://utr_sj_user:l1QGJqrMyxksukna0QhZrhbfL9RbywAz@dpg-d24ui7vdiees739mrel0-a.oregon-postgres.render.com/utr_sj'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
